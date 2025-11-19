@@ -1,2 +1,2 @@
-# Weather_station
+# weather_station
 ESP32-C3 Super Mini
