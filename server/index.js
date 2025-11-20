@@ -16,8 +16,12 @@ app.use(bodyParser.json());
 
 // Conectare MongoDB
 mongoose.connect(MONGO_URL)
-    .then(() => {})
-    .catch(err => {});
+    .then(() => {
+        console.log("MongoDB connected");
+    })
+    .catch(err => {
+        console.error("MongoDB connection error:", err.message);
+    });
 
 // Schema pentru măsurători
 const ReadingSchema = new mongoose.Schema({
@@ -37,8 +41,13 @@ const Reading = mongoose.model("Reading", ReadingSchema, "readings");
 // POST /api/readings ← aici trimite ESP32
 app.post("/api/readings", async (req, res) => {
     try {
-        // Creează o nouă înregistrare cu toate câmpurile definite
-        // Convertim explicit la Number pentru a fi Double, nu Int32
+        if (mongoose.connection.readyState !== 1) {
+            return res.status(503).json({ 
+                status: "error", 
+                message: "MongoDB not connected" 
+            });
+        }
+
         const reading = new Reading({
             temperature: Number(req.body.temperature !== null && req.body.temperature !== undefined ? req.body.temperature : 0),
             humidity: Number(req.body.humidity !== null && req.body.humidity !== undefined ? req.body.humidity : 0),
@@ -47,9 +56,10 @@ app.post("/api/readings", async (req, res) => {
             timestamp: new Date()
         });
         
-        const saved = await reading.save();
-        res.json({ status: "ok", saved: saved });
+        await reading.save();
+        res.json({ status: "ok" });
     } catch (err) {
+        console.error("Error saving data:", err.message);
         res.status(500).json({ status: "error", message: err.message });
     }
 });
@@ -60,7 +70,16 @@ app.get("/api/readings", async (req, res) => {
     res.json(data);
 });
 
+// Endpoint pentru health check
+app.get("/", (req, res) => {
+    res.json({ 
+        status: "ok", 
+        message: "Weather Station Server",
+        mongodb: mongoose.connection.readyState === 1 ? "connected" : "disconnected"
+    });
+});
+
 // ---------------- START SERVER ----------------
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on port ${PORT}`);
 });
