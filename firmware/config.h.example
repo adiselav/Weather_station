@@ -9,5 +9,16 @@ const char* WIFI_PASSWORD = "your_wifi_password";
 // Server configuration
 const char* SERVER_URL = "http://192.168.x.x:3000/api/readings";
 
+// API Key for authentication
+const char* API_KEY = "your_secret_api_key_here";
+
+// WiFi reconnect settings
+#define WIFI_RECONNECT_TIMEOUT 30000  // 30 seconds timeout
+#define WIFI_MAX_RETRIES 5
+
+// HTTP retry settings
+#define HTTP_MAX_RETRIES 3
+#define HTTP_RETRY_DELAY 2000  // 2 seconds between retries
+
 #endif
 
