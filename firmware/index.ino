@@ -15,6 +15,24 @@ SensirionI2cScd4x scd4x;
 
 bool bmpOk = false;
 
+// CRC-8 validation function for SHT21 (polynomial 0x131)
+uint8_t crc8(uint8_t msb, uint8_t lsb)
+{
+  uint32_t data = ((uint32_t)msb << 8) | lsb;
+  for (uint8_t bit = 0; bit < 16; bit++)
+  {
+    if (data & 0x8000)
+    {
+      data = (data << 1) ^ 0x131;
+    }
+    else
+    {
+      data <<= 1;
+    }
+  }
+  return (uint8_t)(data >> 8);
+}
+
 uint16_t readSHT21Raw(uint8_t command, uint16_t delayMs)
 {
   Wire.beginTransmission(SHT21_ADDR);
@@ -41,7 +59,13 @@ uint16_t readSHT21Raw(uint8_t command, uint16_t delayMs)
   uint8_t msb = Wire.read();
   uint8_t lsb = Wire.read();
   uint8_t crc = Wire.read();
-  (void)crc;
+
+  // Validate CRC
+  if (crc8(msb, lsb) != crc)
+  {
+    Serial.println("SHT21: CRC error - data corruption detected");
+    return 0xFFFF;
+  }
 
   uint16_t raw = ((uint16_t)msb << 8) | lsb;
   raw &= ~0x0003;
@@ -259,27 +283,17 @@ void setup()
   delay(1000);
   Serial.println("\n\n=== Weather Station Starting ===");
 
-  // WiFi connection with retry logic
+  // WiFi connection with timeout
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.print("Connecting to WiFi: ");
   Serial.println(WIFI_SSID);
 
-  int wifiRetries = 0;
-  while (WiFi.status() != WL_CONNECTED && wifiRetries < WIFI_MAX_RETRIES)
+  unsigned long startAttempt = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - startAttempt < WIFI_RECONNECT_TIMEOUT)
   {
     delay(500);
     Serial.print(".");
-    wifiRetries++;
-
-    if (wifiRetries >= WIFI_MAX_RETRIES)
-    {
-      Serial.println("\nFailed to connect to WiFi. Retrying...");
-      WiFi.disconnect();
-      delay(1000);
-      WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-      wifiRetries = 0;
-    }
   }
 
   if (WiFi.status() == WL_CONNECTED)
@@ -311,11 +325,35 @@ void setup()
     Serial.println("BMP085 sensor not found!");
   }
 
-  scd4x.begin(Wire, 0x62);
-  scd4x.stopPeriodicMeasurement();
-  delay(500);
-  scd4x.startPeriodicMeasurement();
-  Serial.println("SCD4x sensor initialized");
+  uint16_t error = scd4x.begin(Wire, 0x62);
+  if (error)
+  {
+    Serial.print("Error initializing SCD4x: ");
+    Serial.println(error);
+  }
+  else
+  {
+    error = scd4x.stopPeriodicMeasurement();
+    if (error)
+    {
+      Serial.print("Error stopping SCD4x measurement: ");
+      Serial.println(error);
+    }
+    else
+    {
+      delay(500);
+      error = scd4x.startPeriodicMeasurement();
+      if (error)
+      {
+        Serial.print("Error starting SCD4x measurement: ");
+        Serial.println(error);
+      }
+      else
+      {
+        Serial.println("SCD4x sensor initialized successfully");
+      }
+    }
+  }
 
   Serial.println("=== Setup Complete ===\n");
 }
