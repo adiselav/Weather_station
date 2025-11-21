@@ -2,11 +2,15 @@ const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const cors = require('cors');
+require('dotenv').config();
 
 // ---------------- CONFIG ----------------
 
-const MONGO_URL = "mongodb+srv://paduraru_andrei-dragos:stud@mongodb.ju0c87f.mongodb.net/meteo_station?retryWrites=true&w=majority";
-const PORT = 3000;
+const MONGO_URL = process.env.MONGODB_URI || process.env.MONGODB_URL;
+const DB_NAME = process.env.DB_NAME || 'weather_station';
+const COLLECTION_NAME = process.env.COLLECTION_NAME || 'readings';
+const API_KEY = process.env.API_KEY;
+const PORT = process.env.PORT || 3000;
 
 // ---------------- SETUP ----------------
 
@@ -14,7 +18,7 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-// Conectare MongoDB
+// MongoDB connection
 mongoose.connect(MONGO_URL)
     .then(() => {
         console.log("MongoDB connected");
@@ -23,7 +27,7 @@ mongoose.connect(MONGO_URL)
         console.error("MongoDB connection error:", err.message);
     });
 
-// Schema pentru măsurători
+// Schema for readings
 const ReadingSchema = new mongoose.Schema({
     temperature: Number,
     humidity: Number,
@@ -31,14 +35,14 @@ const ReadingSchema = new mongoose.Schema({
     co2: Number,
     timestamp: { type: Date, default: Date.now }
 }, {
-    versionKey: false  // Dezactivează câmpul __v
+    versionKey: false  // Disable __v field
 });
 
-const Reading = mongoose.model("Reading", ReadingSchema, "readings");
+const Reading = mongoose.model("Reading", ReadingSchema, COLLECTION_NAME);
 
 // ---------------- ROUTES ----------------
 
-// POST /api/readings ← aici trimite ESP32
+// POST /api/readings - ESP32 sends data here
 app.post("/api/readings", async (req, res) => {
     try {
         if (mongoose.connection.readyState !== 1) {
@@ -64,13 +68,13 @@ app.post("/api/readings", async (req, res) => {
     }
 });
 
-// Endpoint opțional pentru verificare
+// Optional endpoint for verification
 app.get("/api/readings", async (req, res) => {
     const data = await Reading.find().sort({ timestamp: -1 }).limit(20);
     res.json(data);
 });
 
-// Endpoint pentru health check
+// Health check endpoint
 app.get("/", (req, res) => {
     res.json({ 
         status: "ok", 

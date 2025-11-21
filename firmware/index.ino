@@ -4,15 +4,11 @@
 #include <Adafruit_BMP085.h>
 #include <SensirionI2cScd4x.h>
 #include <math.h>
+#include "config.h"
 
 #define SHT21_ADDR            0x40
 #define SHT21_CMD_TEMP_NOHOLD 0xF3
 #define SHT21_CMD_HUM_NOHOLD  0xF5
-
-const char* WIFI_SSID     = "Andrei’s Home";
-const char* WIFI_PASSWORD = "dragos03$";
-
-const char* SERVER_URL = "http://192.168.68.53:3000/api/readings";
 
 
 Adafruit_BMP085 bmp;
@@ -25,7 +21,7 @@ uint16_t readSHT21Raw(uint8_t command, uint16_t delayMs) {
   Wire.write(command);
   uint8_t error = Wire.endTransmission();
   if (error != 0) {
-    Serial.print("SHT21: Eroare endTransmission: ");
+    Serial.print("SHT21: endTransmission error: ");
     Serial.println(error);
     return 0xFFFF;
   }
@@ -34,7 +30,7 @@ uint16_t readSHT21Raw(uint8_t command, uint16_t delayMs) {
 
   uint8_t bytesRead = Wire.requestFrom((uint8_t)SHT21_ADDR, (uint8_t)3);
   if (bytesRead < 3) {
-    Serial.print("SHT21: Nu s-au primit destule bytes (primite: ");
+    Serial.print("SHT21: Not enough bytes received (received: ");
     Serial.print(bytesRead);
     Serial.println(")");
     return 0xFFFF;
@@ -130,12 +126,12 @@ void setup() {
   Serial.begin(115200);
 
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  Serial.print("Conectare la WiFi");
+  Serial.print("Connecting to WiFi");
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
-  Serial.println("\nWiFi conectat.");
+  Serial.println("\nWiFi connected.");
   Serial.print("IP: ");
   Serial.println(WiFi.localIP());
 
@@ -151,7 +147,7 @@ void setup() {
 
 void loop() {
   static unsigned long lastMeasure = 0;
-  const unsigned long interval = 3600000UL;  // 1 oră
+  const unsigned long interval = 3600000UL;  // 1 hour
 
   unsigned long now = millis();
 
