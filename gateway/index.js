@@ -6,7 +6,7 @@ require("dotenv").config();
 
 // ---------------- CONFIG ----------------
 
-const MONGO_URL = process.env.MONGODB_URI || process.env.MONGODB_URL;
+const MONGO_URL = process.env.MONGODB_URL || process.env.MONGODB_URL;
 const DB_NAME = process.env.DB_NAME || "weather_station";
 const COLLECTION_NAME = process.env.COLLECTION_NAME || "readings";
 const API_KEY = process.env.API_KEY;
