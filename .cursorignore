@@ -1,0 +1,5 @@
+firmware/config.h
+firmware/config.h.example
+.env
+.env.local
+.env.*.local

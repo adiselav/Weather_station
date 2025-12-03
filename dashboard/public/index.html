@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Weather Station Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Chart.js from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        margin: 0;
+        padding: 0;
+        background: #0f172a;
+        color: #e5e7eb;
+      }
+      header {
+        padding: 16px 24px;
+        background: #020617;
+        border-bottom: 1px solid #1f2937;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      header h1 {
+        margin: 0;
+        font-size: 20px;
+      }
+      main {
+        max-width: 1100px;
+        margin: 24px auto 40px;
+        padding: 0 16px;
+      }
+      .current-card {
+        background: #020617;
+        border-radius: 12px;
+        padding: 16px 20px;
+        border: 1px solid #1f2937;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 12px;
+        margin-bottom: 24px;
+      }
+      .metric {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .metric-label {
+        font-size: 13px;
+        color: #9ca3af;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .metric-value {
+        font-size: 22px;
+        font-weight: 600;
+      }
+      .metric-unit {
+        font-size: 13px;
+        color: #9ca3af;
+      }
+      .updated-at {
+        font-size: 12px;
+        color: #9ca3af;
+        margin-top: 4px;
+      }
+      .charts {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 24px;
+      }
+      .chart-card {
+        background: #020617;
+        border-radius: 12px;
+        padding: 16px 20px 20px;
+        border: 1px solid #1f2937;
+      }
+      .chart-title {
+        margin: 0 0 8px;
+        font-size: 15px;
+      }
+      .error {
+        color: #f97373;
+        font-size: 13px;
+        margin-top: 4px;
+      }
+      button.refresh-btn {
+        background: #22c55e;
+        border: none;
+        color: #022c22;
+        font-weight: 600;
+        padding: 8px 14px;
+        border-radius: 999px;
+        cursor: pointer;
+        font-size: 13px;
+      }
+      button.refresh-btn:hover {
+        filter: brightness(0.95);
+      }
+      .auto-refresh-indicator {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        color: #9ca3af;
+      }
+      .auto-refresh-indicator .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #22c55e;
+        animation: pulse 2s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>ESP32 Weather Station Dashboard</h1>
+      <div style="display: flex; align-items: center; gap: 12px">
+        <div class="auto-refresh-indicator">
+          <span class="dot"></span>
+          <span>Actualizare automată</span>
+        </div>
+        <button class="refresh-btn" id="refreshBtn">Reload Data</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="current-card" id="currentSection">
+        <div class="metric">
+          <span class="metric-label">Temperature</span>
+          <span class="metric-value" id="tempValue">–</span>
+          <span class="metric-unit">°C</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Humidity</span>
+          <span class="metric-value" id="humValue">–</span>
+          <span class="metric-unit">%</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Pressure</span>
+          <span class="metric-value" id="pressValue">–</span>
+          <span class="metric-unit">hPa</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">CO₂</span>
+          <span class="metric-value" id="co2Value">–</span>
+          <span class="metric-unit">ppm</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Last Update</span>
+          <span class="updated-at" id="updatedAt">–</span>
+        </div>
+      </section>
+
+      <section class="charts">
+        <div class="chart-card">
+          <h2 class="chart-title">Temperature (Last Readings)</h2>
+          <canvas id="tempChart"></canvas>
+        </div>
+        <div class="chart-card">
+          <h2 class="chart-title">Humidity (Last Readings)</h2>
+          <canvas id="humChart"></canvas>
+        </div>
+        <div class="chart-card">
+          <h2 class="chart-title">Pressure (Last Readings)</h2>
+          <canvas id="pressChart"></canvas>
+        </div>
+        <div class="chart-card">
+          <h2 class="chart-title">CO₂ (Last Readings)</h2>
+          <canvas id="co2Chart"></canvas>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const latestUrl = "/api/readings/latest";
+      const historyUrl = "/api/readings/history?limit=100";
+      const configUrl = "/api/config";
+
+      const tempEl = document.getElementById("tempValue");
+      const humEl = document.getElementById("humValue");
+      const pressEl = document.getElementById("pressValue");
+      const co2El = document.getElementById("co2Value");
+      const updatedAtEl = document.getElementById("updatedAt");
+      const refreshBtn = document.getElementById("refreshBtn");
+
+      let tempChart, humChart, pressChart, co2Chart;
+
+      function formatTimestamp(ts) {
+        if (!ts) return "–";
+        const d = new Date(ts);
+        return (
+          d.toLocaleDateString() + " " + d.toLocaleTimeString().slice(0, 8)
+        );
+      }
+
+      async function loadLatest() {
+        const res = await fetch(latestUrl);
+        const data = await res.json();
+        if (!data.ok || !data.reading) return;
+
+        const r = data.reading;
+        tempEl.textContent = r.temperature?.toFixed(2) ?? "–";
+        humEl.textContent = r.humidity?.toFixed(2) ?? "–";
+        pressEl.textContent = r.pressure?.toFixed(2) ?? "–";
+        co2El.textContent = r.co2 ?? "–";
+        updatedAtEl.textContent = formatTimestamp(r.timestamp);
+      }
+
+      async function loadHistory() {
+        const res = await fetch(historyUrl);
+        const data = await res.json();
+        if (!data.ok) return;
+
+        const readings = data.readings;
+
+        const labels = readings.map((r) =>
+          new Date(r.timestamp).toLocaleTimeString().slice(0, 5)
+        );
+        const temps = readings.map((r) => r.temperature);
+        const hums = readings.map((r) => r.humidity);
+        const press = readings.map((r) => r.pressure);
+        const co2s = readings.map((r) => r.co2);
+
+        // Temperature Chart
+        const tempCtx = document.getElementById("tempChart").getContext("2d");
+        if (tempChart) tempChart.destroy();
+        tempChart = new Chart(tempCtx, {
+          type: "line",
+          data: {
+            labels,
+            datasets: [
+              {
+                label: "Temperature (°C)",
+                data: temps,
+                borderColor: "#3b82f6",
+                backgroundColor: "rgba(59, 130, 246, 0.1)",
+                fill: false,
+                tension: 0.2,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            scales: {
+              x: { title: { display: true, text: "Time" } },
+              y: { title: { display: true, text: "°C" } },
+            },
+          },
+        });
+
+        // Humidity Chart
+        const humCtx = document.getElementById("humChart").getContext("2d");
+        if (humChart) humChart.destroy();
+        humChart = new Chart(humCtx, {
+          type: "line",
+          data: {
+            labels,
+            datasets: [
+              {
+                label: "Humidity (%)",
+                data: hums,
+                borderColor: "#10b981",
+                backgroundColor: "rgba(16, 185, 129, 0.1)",
+                fill: false,
+                tension: 0.2,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            scales: {
+              x: { title: { display: true, text: "Time" } },
+              y: { title: { display: true, text: "%" } },
+            },
+          },
+        });
+
+        // Pressure Chart
+        const pressCtx = document.getElementById("pressChart").getContext("2d");
+        if (pressChart) pressChart.destroy();
+        pressChart = new Chart(pressCtx, {
+          type: "line",
+          data: {
+            labels,
+            datasets: [
+              {
+                label: "Pressure (hPa)",
+                data: press,
+                borderColor: "#f59e0b",
+                backgroundColor: "rgba(245, 158, 11, 0.1)",
+                fill: false,
+                tension: 0.2,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            scales: {
+              x: { title: { display: true, text: "Time" } },
+              y: { title: { display: true, text: "hPa" } },
+            },
+          },
+        });
+
+        // CO2 Chart
+        const co2Ctx = document.getElementById("co2Chart").getContext("2d");
+        if (co2Chart) co2Chart.destroy();
+        co2Chart = new Chart(co2Ctx, {
+          type: "line",
+          data: {
+            labels,
+            datasets: [
+              {
+                label: "CO₂ (ppm)",
+                data: co2s,
+                borderColor: "#ef4444",
+                backgroundColor: "rgba(239, 68, 68, 0.1)",
+                fill: false,
+                tension: 0.2,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            scales: {
+              x: { title: { display: true, text: "Time" } },
+              y: { title: { display: true, text: "ppm" } },
+            },
+          },
+        });
+      }
+
+      async function refreshAll() {
+        try {
+          await Promise.all([loadLatest(), loadHistory()]);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      refreshBtn.addEventListener("click", refreshAll);
+
+      // Load configuration and start auto-refresh
+      async function initAutoRefresh() {
+        try {
+          const res = await fetch(configUrl);
+          const config = await res.json();
+
+          if (!config.ok || !config.refreshIntervalSeconds) {
+            throw new Error("Configurație invalidă de la server");
+          }
+
+          const intervalSeconds = config.refreshIntervalSeconds;
+          const REFRESH_INTERVAL = intervalSeconds * 1000;
+
+          // Load initial data
+          refreshAll();
+
+          // Auto-refresh based on configured interval
+          setInterval(refreshAll, REFRESH_INTERVAL);
+
+          console.log(
+            `Auto-refresh activat: actualizare la fiecare ${intervalSeconds} secunde`
+          );
+        } catch (e) {
+          console.error("Eroare la încărcarea configurației:", e);
+          alert(
+            "Eroare: Nu s-a putut încărca configurația de refresh. Verifică fișierul .env și asigură-te că REFRESH_INTERVAL_SECONDS este setat corect."
+          );
+        }
+      }
+
+      initAutoRefresh();
+    </script>
+  </body>
+</html>
