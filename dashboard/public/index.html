@@ -86,19 +86,6 @@
         font-size: 13px;
         margin-top: 4px;
       }
-      button.refresh-btn {
-        background: #22c55e;
-        border: none;
-        color: #022c22;
-        font-weight: 600;
-        padding: 8px 14px;
-        border-radius: 999px;
-        cursor: pointer;
-        font-size: 13px;
-      }
-      button.refresh-btn:hover {
-        filter: brightness(0.95);
-      }
       .auto-refresh-indicator {
         display: flex;
         align-items: center;
@@ -126,13 +113,12 @@
   </head>
   <body>
     <header>
-      <h1>ESP32 Weather Station Dashboard</h1>
+      <h1>ESP32C3 Weather Station</h1>
       <div style="display: flex; align-items: center; gap: 12px">
         <div class="auto-refresh-indicator">
           <span class="dot"></span>
           <span>Actualizare automată</span>
         </div>
-        <button class="refresh-btn" id="refreshBtn">Reload Data</button>
       </div>
     </header>
 
@@ -194,7 +180,6 @@
       const pressEl = document.getElementById("pressValue");
       const co2El = document.getElementById("co2Value");
       const updatedAtEl = document.getElementById("updatedAt");
-      const refreshBtn = document.getElementById("refreshBtn");
 
       let tempChart, humChart, pressChart, co2Chart;
 
@@ -350,8 +335,6 @@
           console.error(e);
         }
       }
-
-      refreshBtn.addEventListener("click", refreshAll);
 
       // Load configuration and start auto-refresh
       async function initAutoRefresh() {

@@ -35,41 +35,40 @@ uint8_t crc8(uint8_t msb, uint8_t lsb)
 
 uint16_t readSHT21Raw(uint8_t command, uint16_t delayMs)
 {
-  Wire.beginTransmission(SHT21_ADDR);
-  Wire.write(command);
-  uint8_t error = Wire.endTransmission();
-  if (error != 0)
+  const uint8_t maxRetries = 5;
+  for (uint8_t retry = 0; retry < maxRetries; retry++)
   {
-    Serial.print("SHT21: endTransmission error: ");
-    Serial.println(error);
-    return 0xFFFF;
+    if (retry > 0) delay(100);
+    
+    Wire.beginTransmission(SHT21_ADDR);
+    Wire.write(command);
+    if (Wire.endTransmission() != 0)
+    {
+      if (retry < maxRetries - 1) { delay(50); continue; }
+      return 0xFFFF;
+    }
+
+    delay(delayMs);
+
+    if (Wire.requestFrom((uint8_t)SHT21_ADDR, (uint8_t)3) < 3)
+    {
+      if (retry < maxRetries - 1) { delay(100); continue; }
+      return 0xFFFF;
+    }
+
+    uint8_t msb = Wire.read();
+    uint8_t lsb = Wire.read();
+    uint8_t crc = Wire.read();
+
+    if (crc8(msb, lsb) == crc)
+    {
+      uint16_t raw = ((uint16_t)msb << 8) | lsb;
+      return raw & ~0x0003;
+    }
+    
+    if (retry < maxRetries - 1) delay(150);
   }
-
-  delay(delayMs);
-
-  uint8_t bytesRead = Wire.requestFrom((uint8_t)SHT21_ADDR, (uint8_t)3);
-  if (bytesRead < 3)
-  {
-    Serial.print("SHT21: Not enough bytes received (received: ");
-    Serial.print(bytesRead);
-    Serial.println(")");
-    return 0xFFFF;
-  }
-
-  uint8_t msb = Wire.read();
-  uint8_t lsb = Wire.read();
-  uint8_t crc = Wire.read();
-
-  // Validate CRC
-  if (crc8(msb, lsb) != crc)
-  {
-    Serial.println("SHT21: CRC error - data corruption detected");
-    return 0xFFFF;
-  }
-
-  uint16_t raw = ((uint16_t)msb << 8) | lsb;
-  raw &= ~0x0003;
-  return raw;
+  return 0xFFFF;
 }
 
 float readSHT21TemperatureC()
@@ -138,31 +137,17 @@ float avg2(float a, float b)
 
 bool reconnectWiFi()
 {
-  Serial.println("WiFi disconnected. Attempting to reconnect...");
   WiFi.disconnect();
   delay(1000);
-
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
   unsigned long startAttempt = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - startAttempt < WIFI_RECONNECT_TIMEOUT)
   {
     delay(500);
-    Serial.print(".");
   }
 
-  if (WiFi.status() == WL_CONNECTED)
-  {
-    Serial.println("\nWiFi reconnected successfully!");
-    Serial.print("IP: ");
-    Serial.println(WiFi.localIP());
-    return true;
-  }
-  else
-  {
-    Serial.println("\nWiFi reconnection failed!");
-    return false;
-  }
+  return (WiFi.status() == WL_CONNECTED);
 }
 
 void sendToServer(float temp, float hum, float press, uint16_t co2)
@@ -215,48 +200,42 @@ void sendToServer(float temp, float hum, float press, uint16_t co2)
   bool success = false;
   for (int attempt = 1; attempt <= HTTP_MAX_RETRIES && !success; attempt++)
   {
-    Serial.print("HTTP POST attempt ");
-    Serial.print(attempt);
-    Serial.print("/");
-    Serial.println(HTTP_MAX_RETRIES);
-
     HTTPClient http;
     http.setConnectTimeout(5000);
     http.setTimeout(10000);
-
+    
     if (!http.begin(SERVER_URL))
     {
-      Serial.println("Failed to begin HTTP connection");
-      if (attempt < HTTP_MAX_RETRIES)
-      {
-        delay(HTTP_RETRY_DELAY);
-      }
+      if (attempt < HTTP_MAX_RETRIES) delay(HTTP_RETRY_DELAY);
       continue;
     }
 
     http.addHeader("Content-Type", "application/json");
     http.addHeader("X-API-Key", API_KEY);
-
+    
     int httpCode = http.POST(payload);
 
-    if (httpCode > 0)
+    if (httpCode == 200 || httpCode == 201)
     {
-      Serial.print("HTTP Response code: ");
-      Serial.println(httpCode);
-
-      if (httpCode == 200 || httpCode == 201)
-      {
-        Serial.println("Data sent successfully!");
-        success = true;
-      }
-      else
-      {
-        Serial.println("Server returned error code");
-      }
+      Serial.print("T:");
+      Serial.print(temp, 2);
+      Serial.print("°C H:");
+      Serial.print(hum, 2);
+      Serial.print("% P:");
+      Serial.print(press, 2);
+      Serial.print("hPa CO2:");
+      Serial.print(co2);
+      Serial.println("ppm - Data sent successfully");
+      success = true;
     }
-    else
+    else if (httpCode > 0)
     {
-      Serial.print("HTTP POST failed, error: ");
+      Serial.print("HTTP error: ");
+      Serial.println(httpCode);
+    }
+    else if (attempt == HTTP_MAX_RETRIES)
+    {
+      Serial.print("HTTP failed: ");
       Serial.println(http.errorToString(httpCode));
     }
 
@@ -264,16 +243,8 @@ void sendToServer(float temp, float hum, float press, uint16_t co2)
 
     if (!success && attempt < HTTP_MAX_RETRIES)
     {
-      Serial.print("Retrying in ");
-      Serial.print(HTTP_RETRY_DELAY / 1000);
-      Serial.println(" seconds...");
       delay(HTTP_RETRY_DELAY);
     }
-  }
-
-  if (!success)
-  {
-    Serial.println("Failed to send data after all retry attempts.");
   }
 }
 
@@ -298,70 +269,38 @@ void setup()
 
   if (WiFi.status() == WL_CONNECTED)
   {
-    Serial.println("\nWiFi connected successfully!");
-    Serial.print("IP Address: ");
+    Serial.print("\nWiFi connected - IP: ");
     Serial.println(WiFi.localIP());
-    Serial.print("Signal Strength (RSSI): ");
-    Serial.print(WiFi.RSSI());
-    Serial.println(" dBm");
   }
   else
   {
-    Serial.println("\nWiFi connection failed! Device will continue attempting to connect...");
+    Serial.println("\nWiFi connection failed");
   }
 
-  // Initialize I2C sensors
-  Serial.println("Initializing sensors...");
   Wire.begin(3, 4);
   delay(100);
 
   bmpOk = bmp.begin();
-  if (bmpOk)
+  if (bmpOk) Serial.println("BMP085: OK");
+
+  scd4x.begin(Wire, 0x62);
+  uint16_t error = scd4x.stopPeriodicMeasurement();
+  if (!error)
   {
-    Serial.println("BMP085 sensor initialized");
-  }
-  else
-  {
-    Serial.println("BMP085 sensor not found!");
+    delay(500);
+    error = scd4x.startPeriodicMeasurement();
+    if (!error) Serial.println("SCD4x: OK");
   }
 
-  uint16_t error = scd4x.begin(Wire, 0x62);
-  if (error)
-  {
-    Serial.print("Error initializing SCD4x: ");
-    Serial.println(error);
-  }
-  else
-  {
-    error = scd4x.stopPeriodicMeasurement();
-    if (error)
-    {
-      Serial.print("Error stopping SCD4x measurement: ");
-      Serial.println(error);
-    }
-    else
-    {
-      delay(500);
-      error = scd4x.startPeriodicMeasurement();
-      if (error)
-      {
-        Serial.print("Error starting SCD4x measurement: ");
-        Serial.println(error);
-      }
-      else
-      {
-        Serial.println("SCD4x sensor initialized successfully");
-      }
-    }
-  }
-
-  Serial.println("=== Setup Complete ===\n");
+  Serial.println("Waiting 10s for sensors...");
+  delay(10000);
+  Serial.println("Ready!\n");
 }
 
 void loop()
 {
   static unsigned long lastMeasure = 0;
-  const unsigned long interval = 3600000UL; // 1 hour
+  const unsigned long interval = 60000UL; // 1 minute
 
   unsigned long now = millis();
 
