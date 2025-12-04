@@ -328,7 +328,7 @@ void setup()
 void loop()
 {
   static unsigned long lastMeasure = 0;
-  const unsigned long interval = 60000UL; // 1 minute
+  const unsigned long interval = 3600000UL; // 1 hour (60 minutes * 60 seconds * 1000 ms)
 
   unsigned long now = millis();
 

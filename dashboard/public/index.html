@@ -2,173 +2,414 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Weather Station Dashboard</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <!-- Chart.js from CDN -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ESP32C3 Weather Station</title>
+    <!-- Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+    <!-- Material Design CSS -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet" />
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-      body {
-        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-          sans-serif;
+      * {
         margin: 0;
         padding: 0;
-        background: #0f172a;
-        color: #e5e7eb;
+        box-sizing: border-box;
       }
-      header {
+
+      :root {
+        --mdc-theme-primary: #90caf9;
+        --mdc-theme-secondary: #03dac6;
+        --mdc-theme-surface: #1e1e1e;
+        --mdc-theme-background: #121212;
+        --mdc-theme-on-primary: #000000;
+        --mdc-theme-on-secondary: #000000;
+        --mdc-theme-on-surface: #ffffff;
+        --mdc-elevation-1: 0px 2px 1px -1px rgba(0, 0, 0, 0.4), 0px 1px 1px 0px rgba(0, 0, 0, 0.3), 0px 1px 3px 0px rgba(0, 0, 0, 0.3);
+        --mdc-elevation-2: 0px 3px 1px -2px rgba(0, 0, 0, 0.4), 0px 2px 2px 0px rgba(0, 0, 0, 0.3), 0px 1px 5px 0px rgba(0, 0, 0, 0.3);
+        --mdc-elevation-4: 0px 2px 4px -1px rgba(0, 0, 0, 0.5), 0px 4px 5px 0px rgba(0, 0, 0, 0.4), 0px 1px 10px 0px rgba(0, 0, 0, 0.4);
+      }
+
+      body {
+        font-family: 'Roboto', sans-serif;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        min-height: 100vh;
+        padding: 0;
+        margin: 0;
+        color: #ffffff;
+      }
+
+      .app-bar {
+        background: rgba(30, 30, 30, 0.95);
+        backdrop-filter: blur(10px);
+        box-shadow: var(--mdc-elevation-2);
         padding: 16px 24px;
-        background: #020617;
-        border-bottom: 1px solid #1f2937;
         display: flex;
         align-items: center;
         justify-content: space-between;
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
       }
-      header h1 {
-        margin: 0;
+
+      .app-bar h1 {
         font-size: 20px;
-      }
-      main {
-        max-width: 1100px;
-        margin: 24px auto 40px;
-        padding: 0 16px;
-      }
-      .current-card {
-        background: #020617;
-        border-radius: 12px;
-        padding: 16px 20px;
-        border: 1px solid #1f2937;
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-        gap: 12px;
-        margin-bottom: 24px;
-      }
-      .metric {
+        font-weight: 500;
+        color: #90caf9;
         display: flex;
-        flex-direction: column;
-        gap: 4px;
+        align-items: center;
+        gap: 12px;
       }
-      .metric-label {
-        font-size: 13px;
-        color: #9ca3af;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
+
+      .app-bar .material-icons {
+        font-size: 24px;
       }
-      .metric-value {
-        font-size: 22px;
-        font-weight: 600;
-      }
-      .metric-unit {
-        font-size: 13px;
-        color: #9ca3af;
-      }
-      .updated-at {
-        font-size: 12px;
-        color: #9ca3af;
-        margin-top: 4px;
-      }
-      .charts {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 24px;
-      }
-      .chart-card {
-        background: #020617;
-        border-radius: 12px;
-        padding: 16px 20px 20px;
-        border: 1px solid #1f2937;
-      }
-      .chart-title {
-        margin: 0 0 8px;
-        font-size: 15px;
-      }
-      .error {
-        color: #f97373;
-        font-size: 13px;
-        margin-top: 4px;
-      }
-      .auto-refresh-indicator {
+
+      .status-indicator {
         display: flex;
         align-items: center;
         gap: 8px;
-        font-size: 12px;
-        color: #9ca3af;
+        color: #81c784;
+        font-size: 14px;
       }
-      .auto-refresh-indicator .dot {
+
+      .status-dot {
         width: 8px;
         height: 8px;
         border-radius: 50%;
-        background: #22c55e;
+        background: #81c784;
         animation: pulse 2s ease-in-out infinite;
       }
+
       @keyframes pulse {
-        0%,
-        100% {
-          opacity: 1;
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+      }
+
+      .container {
+        width: 80%;
+        margin: 0 auto;
+        padding: 24px;
+        height: calc(100vh - 80px);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 20px;
+        margin-bottom: 32px;
+      }
+
+      .metric-card {
+        background: rgba(30, 30, 30, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: var(--mdc-elevation-2);
+        transition: transform 0.2s, box-shadow 0.2s;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        flex-direction: column;
+        position: relative;
+      }
+
+      .metric-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--mdc-elevation-4);
+        border-color: rgba(255, 255, 255, 0.2);
+      }
+
+      .metric-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+      }
+
+      .metric-icon {
+        position: absolute;
+        right: 24px;
+        top: 50%;
+        transform: translateY(-50%);
+      }
+
+      .metric-label {
+        font-size: 14px;
+        color: #b0b0b0;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 500;
+      }
+
+      .metric-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        color: white;
+      }
+
+      .metric-icon.temp { background: linear-gradient(135deg, #ff6b6b, #ee5a6f); }
+      .metric-icon.hum { background: linear-gradient(135deg, #4ecdc4, #44a08d); }
+      .metric-icon.press { background: linear-gradient(135deg, #feca57, #ff9ff3); }
+      .metric-icon.co2 { background: linear-gradient(135deg, #a8edea, #fed6e3); }
+
+      .metric-value {
+        font-size: 32px;
+        font-weight: 500;
+        color: #ffffff;
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+      }
+
+      .metric-unit {
+        font-size: 18px;
+        color: #b0b0b0;
+        font-weight: 400;
+      }
+
+      .metric-footer {
+        margin-top: 12px;
+        font-size: 12px;
+        color: #888;
+      }
+
+      .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 24px;
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+      }
+
+      @media (max-width: 968px) {
+        .charts-grid {
+          grid-template-columns: 1fr;
         }
-        50% {
-          opacity: 0.5;
-        }
+      }
+
+      .chart-card {
+        background: rgba(30, 30, 30, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: var(--mdc-elevation-2);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow: hidden;
+      }
+
+      .chart-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--mdc-elevation-4);
+        border-color: rgba(255, 255, 255, 0.2);
+      }
+
+      .chart-title {
+        font-size: 18px;
+        font-weight: 500;
+        color: #ffffff;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+
+      .chart-card canvas {
+        flex: 1;
+        min-height: 0;
+        max-height: 100%;
+        width: 100% !important;
+        height: 100% !important;
+      }
+
+      .chart-title .material-icons {
+        font-size: 20px;
+        color: #90caf9;
+      }
+
+      .loading {
+        text-align: center;
+        padding: 40px;
+        color: rgba(255, 255, 255, 0.9);
+      }
+
+      .error {
+        background: rgba(198, 40, 40, 0.2);
+        color: #ef5350;
+        padding: 16px;
+        border-radius: 8px;
+        margin: 16px 0;
+        border: 1px solid rgba(239, 83, 80, 0.3);
+      }
+
+      .filter-selector {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 16px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .filter-selector select {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 6px;
+        padding: 8px 12px;
+        color: #ffffff;
+        font-size: 14px;
+        font-family: 'Roboto', sans-serif;
+        cursor: pointer;
+        outline: none;
+      }
+
+      .filter-selector select:hover {
+        background: rgba(255, 255, 255, 0.15);
+      }
+
+      .filter-selector select:focus {
+        border-color: #90caf9;
+      }
+
+      .filter-selector label {
+        font-size: 14px;
+        color: rgba(255, 255, 255, 0.7);
+      }
+
+      select option {
+        background: #1e1e1e !important;
+        color: #ffffff !important;
       }
     </style>
   </head>
   <body>
-    <header>
-      <h1>ESP32C3 Weather Station</h1>
-      <div style="display: flex; align-items: center; gap: 12px">
-        <div class="auto-refresh-indicator">
-          <span class="dot"></span>
-          <span>Actualizare automată</span>
+    <div class="app-bar">
+      <h1>
+        <span class="material-icons">device_thermostat</span>
+        ESP32C3 Weather Station
+      </h1>
+      <div style="display: flex; align-items: center; gap: 24px;">
+        <select id="timeFilter" onchange="applyTimeFilter()" style="background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; padding: 8px 12px; color: #ffffff; font-size: 14px; font-family: 'Roboto', sans-serif; cursor: pointer; outline: none;">
+          <option value="today" style="background: #1e1e1e; color: #ffffff;">Today</option>
+          <option value="week" style="background: #1e1e1e; color: #ffffff;">This Week</option>
+          <option value="month" style="background: #1e1e1e; color: #ffffff;">This Month</option>
+          <option value="year" style="background: #1e1e1e; color: #ffffff;">This Year</option>
+          <option value="lastYear" style="background: #1e1e1e; color: #ffffff;">Last Year</option>
+        </select>
+        <div class="status-indicator">
+          <span class="status-dot"></span>
+          <span>Auto refresh</span>
+        </div>
+        <div style="font-size: 14px; color: rgba(255, 255, 255, 0.7);">
+          Last update: <span id="lastUpdate">–</span>
         </div>
       </div>
-    </header>
+    </div>
 
-    <main>
-      <section class="current-card" id="currentSection">
-        <div class="metric">
-          <span class="metric-label">Temperature</span>
-          <span class="metric-value" id="tempValue">–</span>
-          <span class="metric-unit">°C</span>
+    <div class="container">
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-header">
+            <span class="metric-label">Temperature</span>
+          </div>
+          <div class="metric-value">
+            <span id="tempValue">–</span>
+            <span class="metric-unit">°C</span>
+          </div>
+          <div class="metric-icon temp">
+            <span class="material-icons">thermostat</span>
+          </div>
         </div>
-        <div class="metric">
-          <span class="metric-label">Humidity</span>
-          <span class="metric-value" id="humValue">–</span>
-          <span class="metric-unit">%</span>
-        </div>
-        <div class="metric">
-          <span class="metric-label">Pressure</span>
-          <span class="metric-value" id="pressValue">–</span>
-          <span class="metric-unit">hPa</span>
-        </div>
-        <div class="metric">
-          <span class="metric-label">CO₂</span>
-          <span class="metric-value" id="co2Value">–</span>
-          <span class="metric-unit">ppm</span>
-        </div>
-        <div class="metric">
-          <span class="metric-label">Last Update</span>
-          <span class="updated-at" id="updatedAt">–</span>
-        </div>
-      </section>
 
-      <section class="charts">
+        <div class="metric-card">
+          <div class="metric-header">
+            <span class="metric-label">Humidity</span>
+          </div>
+          <div class="metric-value">
+            <span id="humValue">–</span>
+            <span class="metric-unit">%</span>
+          </div>
+          <div class="metric-icon hum">
+            <span class="material-icons">water_drop</span>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <span class="metric-label">Pressure</span>
+          </div>
+          <div class="metric-value">
+            <span id="pressValue">–</span>
+            <span class="metric-unit">hPa</span>
+          </div>
+          <div class="metric-icon press">
+            <span class="material-icons">compress</span>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <span class="metric-label">CO₂</span>
+          </div>
+          <div class="metric-value">
+            <span id="co2Value">–</span>
+            <span class="metric-unit">ppm</span>
+          </div>
+          <div class="metric-icon co2">
+            <span class="material-icons">air</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="charts-grid">
         <div class="chart-card">
-          <h2 class="chart-title">Temperature (Last Readings)</h2>
+          <h2 class="chart-title">
+            <span class="material-icons">show_chart</span>
+            Temperature
+          </h2>
           <canvas id="tempChart"></canvas>
         </div>
+
         <div class="chart-card">
-          <h2 class="chart-title">Humidity (Last Readings)</h2>
+          <h2 class="chart-title">
+            <span class="material-icons">show_chart</span>
+            Humidity
+          </h2>
           <canvas id="humChart"></canvas>
         </div>
+
         <div class="chart-card">
-          <h2 class="chart-title">Pressure (Last Readings)</h2>
+          <h2 class="chart-title">
+            <span class="material-icons">show_chart</span>
+            Pressure
+          </h2>
           <canvas id="pressChart"></canvas>
         </div>
+
         <div class="chart-card">
-          <h2 class="chart-title">CO₂ (Last Readings)</h2>
+          <h2 class="chart-title">
+            <span class="material-icons">show_chart</span>
+            CO₂
+          </h2>
           <canvas id="co2Chart"></canvas>
         </div>
-      </section>
-    </main>
+      </div>
+    </div>
 
     <script>
       const latestUrl = "/api/readings/latest";
@@ -179,45 +420,207 @@
       const humEl = document.getElementById("humValue");
       const pressEl = document.getElementById("pressValue");
       const co2El = document.getElementById("co2Value");
-      const updatedAtEl = document.getElementById("updatedAt");
 
       let tempChart, humChart, pressChart, co2Chart;
+      let allReadings = [];
+      let currentFilter = 'today';
 
       function formatTimestamp(ts) {
         if (!ts) return "–";
         const d = new Date(ts);
-        return (
-          d.toLocaleDateString() + " " + d.toLocaleTimeString().slice(0, 8)
-        );
+        return d.toLocaleDateString("en-US") + " " + d.toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit', hour12: false });
       }
 
-      async function loadLatest() {
-        const res = await fetch(latestUrl);
-        const data = await res.json();
-        if (!data.ok || !data.reading) return;
+      function getFilteredReadings(readings) {
+        const now = new Date();
+        const filterDate = new Date();
 
-        const r = data.reading;
-        tempEl.textContent = r.temperature?.toFixed(2) ?? "–";
-        humEl.textContent = r.humidity?.toFixed(2) ?? "–";
-        pressEl.textContent = r.pressure?.toFixed(2) ?? "–";
-        co2El.textContent = r.co2 ?? "–";
-        updatedAtEl.textContent = formatTimestamp(r.timestamp);
+        switch (currentFilter) {
+          case 'today':
+            filterDate.setHours(0, 0, 0, 0);
+            break;
+          case 'week':
+            const dayOfWeek = now.getDay();
+            filterDate.setDate(now.getDate() - dayOfWeek);
+            filterDate.setHours(0, 0, 0, 0);
+            break;
+          case 'month':
+            filterDate.setDate(1);
+            filterDate.setHours(0, 0, 0, 0);
+            break;
+          case 'year':
+            filterDate.setMonth(0, 1);
+            filterDate.setHours(0, 0, 0, 0);
+            break;
+          case 'lastYear':
+            filterDate.setFullYear(now.getFullYear() - 1, 0, 1);
+            filterDate.setHours(0, 0, 0, 0);
+            break;
+        }
+
+        return readings.filter(r => {
+          const readingDate = new Date(r.timestamp);
+          if (currentFilter === 'lastYear') {
+            const endDate = new Date(filterDate);
+            endDate.setFullYear(filterDate.getFullYear() + 1);
+            return readingDate >= filterDate && readingDate < endDate;
+          }
+          return readingDate >= filterDate;
+        });
       }
 
-      async function loadHistory() {
-        const res = await fetch(historyUrl);
-        const data = await res.json();
-        if (!data.ok) return;
+      function applyTimeFilter() {
+        const select = document.getElementById('timeFilter');
+        currentFilter = select.value;
+        updateCharts();
+      }
 
-        const readings = data.readings;
+      function aggregateReadings(readings, filter) {
+        if (filter === 'today') {
+          return readings;
+        }
 
-        const labels = readings.map((r) =>
-          new Date(r.timestamp).toLocaleTimeString().slice(0, 5)
-        );
-        const temps = readings.map((r) => r.temperature);
-        const hums = readings.map((r) => r.humidity);
-        const press = readings.map((r) => r.pressure);
-        const co2s = readings.map((r) => r.co2);
+        const grouped = {};
+        const now = new Date();
+        let startDate = new Date();
+        let endDate = new Date();
+        
+        // Determine date range
+        if (filter === 'week') {
+          const dayOfWeek = now.getDay();
+          startDate.setDate(now.getDate() - dayOfWeek);
+          startDate.setHours(0, 0, 0, 0);
+          endDate = new Date(startDate);
+          endDate.setDate(startDate.getDate() + 6);
+        } else if (filter === 'month') {
+          startDate.setDate(1);
+          startDate.setHours(0, 0, 0, 0);
+          endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
+        } else if (filter === 'year') {
+          startDate.setMonth(0, 1);
+          startDate.setHours(0, 0, 0, 0);
+          endDate = new Date(startDate.getFullYear(), 11, 31);
+        } else if (filter === 'lastYear') {
+          startDate.setFullYear(now.getFullYear() - 1, 0, 1);
+          startDate.setHours(0, 0, 0, 0);
+          endDate = new Date(startDate.getFullYear(), 11, 31);
+        } else if (filter === 'lastYear') {
+          startDate.setFullYear(now.getFullYear() - 1, 0, 1);
+          startDate.setHours(0, 0, 0, 0);
+          endDate = new Date(startDate.getFullYear(), 11, 31);
+        } else if (filter === 'lastYear') {
+          startDate.setFullYear(now.getFullYear() - 1, 0, 1);
+          startDate.setHours(0, 0, 0, 0);
+          endDate = new Date(startDate.getFullYear(), 11, 31);
+        }
+        
+        // Group existing readings
+        readings.forEach(r => {
+          const d = new Date(r.timestamp);
+          let key;
+          
+          if (filter === 'week' || filter === 'month') {
+            key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          } else if (filter === 'year' || filter === 'lastYear') {
+            key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+          }
+          
+          if (!grouped[key]) {
+            grouped[key] = {
+              timestamp: d,
+              temperatures: [],
+              humidities: [],
+              pressures: [],
+              co2s: []
+            };
+          }
+          
+          if (r.temperature !== null && r.temperature !== undefined) grouped[key].temperatures.push(r.temperature);
+          if (r.humidity !== null && r.humidity !== undefined) grouped[key].humidities.push(r.humidity);
+          if (r.pressure !== null && r.pressure !== undefined) grouped[key].pressures.push(r.pressure);
+          if (r.co2 !== null && r.co2 !== undefined) grouped[key].co2s.push(r.co2);
+        });
+
+        // Calculate averages
+        const avg = arr => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+        const aggregated = Object.keys(grouped).sort().map(key => {
+          const group = grouped[key];
+          return {
+            timestamp: group.timestamp,
+            temperature: avg(group.temperatures),
+            humidity: avg(group.humidities),
+            pressure: avg(group.pressures),
+            co2: avg(group.co2s)
+          };
+        });
+
+        // Fill missing dates with 0
+        const result = [];
+        const current = new Date(startDate);
+        
+        while (current <= endDate) {
+          let key;
+          if (filter === 'week' || filter === 'month') {
+            key = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+          } else if (filter === 'year' || filter === 'lastYear') {
+            key = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}`;
+          }
+          
+          const existing = aggregated.find(a => {
+            const aDate = new Date(a.timestamp);
+            if (filter === 'week' || filter === 'month') {
+              return aDate.getFullYear() === current.getFullYear() &&
+                     aDate.getMonth() === current.getMonth() &&
+                     aDate.getDate() === current.getDate();
+            } else if (filter === 'year' || filter === 'lastYear') {
+              return aDate.getFullYear() === current.getFullYear() &&
+                     aDate.getMonth() === current.getMonth();
+            }
+          });
+          
+          if (existing) {
+            result.push(existing);
+          } else {
+            result.push({
+              timestamp: new Date(current),
+              temperature: 0,
+              humidity: 0,
+              pressure: 0,
+              co2: 0
+            });
+          }
+          
+          if (filter === 'week' || filter === 'month') {
+            current.setDate(current.getDate() + 1);
+          } else if (filter === 'year' || filter === 'lastYear') {
+            current.setMonth(current.getMonth() + 1);
+          }
+        }
+        
+        return result;
+      }
+
+      function formatLabel(timestamp, filter) {
+        const d = new Date(timestamp);
+        switch (filter) {
+          case 'today':
+            return d.toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit', hour12: false });
+          case 'week':
+            return d.toLocaleDateString("en-US", { weekday: 'short', day: 'numeric', month: 'short' });
+          case 'month':
+            return d.toLocaleDateString("en-US", { day: 'numeric', month: 'short' });
+          case 'year':
+          case 'lastYear':
+            return d.toLocaleDateString("en-US", { month: 'short', year: 'numeric' });
+          default:
+            return d.toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit', hour12: false });
+        }
+      }
+
+      function updateCharts() {
+        const filtered = getFilteredReadings(allReadings);
+        const aggregated = aggregateReadings(filtered, currentFilter);
+        const labels = aggregated.map((r) => formatLabel(r.timestamp, currentFilter));
 
         // Temperature Chart
         const tempCtx = document.getElementById("tempChart").getContext("2d");
@@ -226,24 +629,17 @@
           type: "line",
           data: {
             labels,
-            datasets: [
-              {
-                label: "Temperature (°C)",
-                data: temps,
-                borderColor: "#3b82f6",
-                backgroundColor: "rgba(59, 130, 246, 0.1)",
-                fill: false,
-                tension: 0.2,
-              },
-            ],
+            datasets: [{
+              label: "Temperature (°C)",
+              data: aggregated.map((r) => r.temperature),
+              borderColor: "#ff6b6b",
+              backgroundColor: "rgba(255, 107, 107, 0.1)",
+              fill: true,
+              tension: 0.4,
+              borderWidth: 2
+            }]
           },
-          options: {
-            responsive: true,
-            scales: {
-              x: { title: { display: true, text: "Time" } },
-              y: { title: { display: true, text: "°C" } },
-            },
-          },
+          options: chartOptions
         });
 
         // Humidity Chart
@@ -253,24 +649,17 @@
           type: "line",
           data: {
             labels,
-            datasets: [
-              {
-                label: "Humidity (%)",
-                data: hums,
-                borderColor: "#10b981",
-                backgroundColor: "rgba(16, 185, 129, 0.1)",
-                fill: false,
-                tension: 0.2,
-              },
-            ],
+            datasets: [{
+              label: "Humidity (%)",
+              data: aggregated.map((r) => r.humidity),
+              borderColor: "#4ecdc4",
+              backgroundColor: "rgba(78, 205, 196, 0.1)",
+              fill: true,
+              tension: 0.4,
+              borderWidth: 2
+            }]
           },
-          options: {
-            responsive: true,
-            scales: {
-              x: { title: { display: true, text: "Time" } },
-              y: { title: { display: true, text: "%" } },
-            },
-          },
+          options: chartOptions
         });
 
         // Pressure Chart
@@ -280,24 +669,17 @@
           type: "line",
           data: {
             labels,
-            datasets: [
-              {
-                label: "Pressure (hPa)",
-                data: press,
-                borderColor: "#f59e0b",
-                backgroundColor: "rgba(245, 158, 11, 0.1)",
-                fill: false,
-                tension: 0.2,
-              },
-            ],
+            datasets: [{
+              label: "Pressure (hPa)",
+              data: aggregated.map((r) => r.pressure),
+              borderColor: "#feca57",
+              backgroundColor: "rgba(254, 202, 87, 0.1)",
+              fill: true,
+              tension: 0.4,
+              borderWidth: 2
+            }]
           },
-          options: {
-            responsive: true,
-            scales: {
-              x: { title: { display: true, text: "Time" } },
-              y: { title: { display: true, text: "hPa" } },
-            },
-          },
+          options: chartOptions
         });
 
         // CO2 Chart
@@ -307,62 +689,98 @@
           type: "line",
           data: {
             labels,
-            datasets: [
-              {
-                label: "CO₂ (ppm)",
-                data: co2s,
-                borderColor: "#ef4444",
-                backgroundColor: "rgba(239, 68, 68, 0.1)",
-                fill: false,
-                tension: 0.2,
-              },
-            ],
+            datasets: [{
+              label: "CO₂ (ppm)",
+              data: aggregated.map((r) => r.co2),
+              borderColor: "#a8edea",
+              backgroundColor: "rgba(168, 237, 234, 0.1)",
+              fill: true,
+              tension: 0.4,
+              borderWidth: 2
+            }]
           },
-          options: {
-            responsive: true,
-            scales: {
-              x: { title: { display: true, text: "Time" } },
-              y: { title: { display: true, text: "ppm" } },
-            },
-          },
+          options: chartOptions
         });
       }
 
-      async function refreshAll() {
+      async function loadLatest() {
         try {
-          await Promise.all([loadLatest(), loadHistory()]);
+          const res = await fetch(latestUrl);
+          const data = await res.json();
+          if (!data.ok || !data.reading) return;
+
+          const r = data.reading;
+          tempEl.textContent = r.temperature?.toFixed(1) ?? "–";
+          humEl.textContent = r.humidity?.toFixed(1) ?? "–";
+          pressEl.textContent = r.pressure?.toFixed(1) ?? "–";
+          co2El.textContent = r.co2 ?? "–";
+          
+          const timeStr = formatTimestamp(r.timestamp);
+          document.getElementById("lastUpdate").textContent = timeStr;
         } catch (e) {
-          console.error(e);
+          console.error("Error loading latest:", e);
         }
       }
 
-      // Load configuration and start auto-refresh
+      const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
+          }
+        },
+        scales: {
+          x: {
+            grid: {
+              display: false
+            },
+            ticks: {
+              color: 'rgba(255, 255, 255, 0.7)'
+            }
+          },
+          y: {
+            grid: {
+              display: false
+            },
+            ticks: {
+              color: 'rgba(255, 255, 255, 0.7)'
+            }
+          }
+        }
+      };
+
+      async function loadHistory() {
+        try {
+          const res = await fetch(historyUrl);
+          const data = await res.json();
+          if (!data.ok) return;
+
+          allReadings = data.readings;
+          updateCharts();
+        } catch (e) {
+          console.error("Error loading history:", e);
+        }
+      }
+
+      async function refreshAll() {
+        await Promise.all([loadLatest(), loadHistory()]);
+      }
+
       async function initAutoRefresh() {
         try {
           const res = await fetch(configUrl);
           const config = await res.json();
 
           if (!config.ok || !config.refreshIntervalSeconds) {
-            throw new Error("Configurație invalidă de la server");
+            throw new Error("Invalid configuration");
           }
 
           const intervalSeconds = config.refreshIntervalSeconds;
-          const REFRESH_INTERVAL = intervalSeconds * 1000;
-
-          // Load initial data
           refreshAll();
-
-          // Auto-refresh based on configured interval
-          setInterval(refreshAll, REFRESH_INTERVAL);
-
-          console.log(
-            `Auto-refresh activat: actualizare la fiecare ${intervalSeconds} secunde`
-          );
+          setInterval(refreshAll, intervalSeconds * 1000);
         } catch (e) {
-          console.error("Eroare la încărcarea configurației:", e);
-          alert(
-            "Eroare: Nu s-a putut încărca configurația de refresh. Verifică fișierul .env și asigură-te că REFRESH_INTERVAL_SECONDS este setat corect."
-          );
+          console.error("Configuration error:", e);
         }
       }
 

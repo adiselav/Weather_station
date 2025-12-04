@@ -36,7 +36,7 @@ services:
       - key: COLLECTION_NAME
         value: readings
       - key: REFRESH_INTERVAL_SECONDS
-        value: 30
+        value: 3600
       - key: PORT
         fromService:
           type: web
