@@ -31,7 +31,7 @@ build/
 *.d
 
 # Arduino config files (contains sensitive data)
-firmware/config.h
+firmware/index/config.h
 
 # Logs
 logs/
@@ -41,4 +41,3 @@ logs/
 *.tmp
 *.temp
 .cache/
-

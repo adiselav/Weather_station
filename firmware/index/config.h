@@ -7,7 +7,7 @@ const char* WIFI_SSID     = "Andrei’s Home";
 const char* WIFI_PASSWORD = "dragos03$";
 
 // Server configuration
-const char* SERVER_URL = "http://192.168.68.57:3000/api/readings";
+const char* SERVER_URL = "https://weather-station-gateway.onrender.com/api/readings";
 
 // API Key for authentication
 const char* API_KEY = "api_wxJAMcFVioe4kcuasrdpDIjrQPq1bWcS";

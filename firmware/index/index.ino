@@ -217,15 +217,26 @@ void sendToServer(float temp, float hum, float press, uint16_t co2)
 
     if (httpCode == 200 || httpCode == 201)
     {
-      Serial.print("T:");
+      Serial.println();
+      Serial.print("Temperature (*C): ");
       Serial.print(temp, 2);
-      Serial.print("°C H:");
+      Serial.println();
+
+      Serial.print("Humidity (%): ");
       Serial.print(hum, 2);
-      Serial.print("% P:");
+      Serial.println();
+
+      Serial.print("Pressure (hPa): ");
       Serial.print(press, 2);
-      Serial.print("hPa CO2:");
+      Serial.println();
+
+      Serial.print("CO2 (ppm): ");
       Serial.print(co2);
-      Serial.println("ppm - Data sent successfully");
+      Serial.println();
+
+      Serial.println();
+      Serial.print("Data sent successfully\n");
+      Serial.println();
       success = true;
     }
     else if (httpCode > 0)
@@ -252,7 +263,7 @@ void setup()
 {
   Serial.begin(115200);
   delay(1000);
-  Serial.println("\n\n=== Weather Station Starting ===");
+  Serial.println("=== Weather Station Starting ===");
 
   // WiFi connection with timeout
   WiFi.mode(WIFI_STA);
@@ -264,7 +275,6 @@ void setup()
   while (WiFi.status() != WL_CONNECTED && millis() - startAttempt < WIFI_RECONNECT_TIMEOUT)
   {
     delay(500);
-    Serial.print(".");
   }
 
   if (WiFi.status() == WL_CONNECTED)
@@ -280,21 +290,39 @@ void setup()
   Wire.begin(3, 4);
   delay(100);
 
+  // Initialize sensors (without verification yet)
   bmpOk = bmp.begin();
-  if (bmpOk) Serial.println("BMP085: OK");
-
   scd4x.begin(Wire, 0x62);
-  uint16_t error = scd4x.stopPeriodicMeasurement();
-  if (!error)
-  {
-    delay(500);
-    error = scd4x.startPeriodicMeasurement();
-    if (!error) Serial.println("SCD4x: OK");
-  }
+  scd4x.stopPeriodicMeasurement();
+  delay(500);
+  scd4x.startPeriodicMeasurement();
 
   Serial.println("Waiting 10s for sensors...");
   delay(10000);
-  Serial.println("Ready!\n");
+  
+  // Verify all sensors via I2C after stabilization
+  // BMP085 - typically at 0x77
+  Wire.beginTransmission(0x77);
+  if (Wire.endTransmission() == 0)
+  {
+    Serial.println("BMP085: OK");
+  }
+  
+  // SCD4x - at 0x62
+  Wire.beginTransmission(0x62);
+  if (Wire.endTransmission() == 0)
+  {
+    Serial.println("SCD4x: OK");
+  }
+  
+  // SHT21 - at 0x40
+  Wire.beginTransmission(SHT21_ADDR);
+  if (Wire.endTransmission() == 0)
+  {
+    Serial.println("SHT21: OK");
+  }
+  
+  Serial.println("Ready!");
 }
 
 void loop()

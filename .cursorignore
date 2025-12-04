@@ -1,5 +1,5 @@
-firmware/config.h
-firmware/config.h.example
+firmware/index/config.h
+firmware/index/config.h.example
 .env
 .env.local
 .env.*.local
