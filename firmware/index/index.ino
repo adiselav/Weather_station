@@ -40,35 +40,35 @@ uint16_t readSHT21Raw(uint8_t command, uint16_t delayMs)
   {
     if (retry > 0) delay(100);
     
-    Wire.beginTransmission(SHT21_ADDR);
-    Wire.write(command);
+  Wire.beginTransmission(SHT21_ADDR);
+  Wire.write(command);
     if (Wire.endTransmission() != 0)
-    {
+  {
       if (retry < maxRetries - 1) { delay(50); continue; }
-      return 0xFFFF;
-    }
+    return 0xFFFF;
+  }
 
-    delay(delayMs);
+  delay(delayMs);
 
     if (Wire.requestFrom((uint8_t)SHT21_ADDR, (uint8_t)3) < 3)
-    {
+  {
       if (retry < maxRetries - 1) { delay(100); continue; }
-      return 0xFFFF;
-    }
+    return 0xFFFF;
+  }
 
-    uint8_t msb = Wire.read();
-    uint8_t lsb = Wire.read();
-    uint8_t crc = Wire.read();
+  uint8_t msb = Wire.read();
+  uint8_t lsb = Wire.read();
+  uint8_t crc = Wire.read();
 
     if (crc8(msb, lsb) == crc)
-    {
+  {
       uint16_t raw = ((uint16_t)msb << 8) | lsb;
       return raw & ~0x0003;
     }
     
     if (retry < maxRetries - 1) delay(150);
   }
-  return 0xFFFF;
+    return 0xFFFF;
 }
 
 float readSHT21TemperatureC()
@@ -203,7 +203,7 @@ void sendToServer(float temp, float hum, float press, uint16_t co2)
     HTTPClient http;
     http.setConnectTimeout(5000);
     http.setTimeout(10000);
-    
+
     if (!http.begin(SERVER_URL))
     {
       if (attempt < HTTP_MAX_RETRIES) delay(HTTP_RETRY_DELAY);
@@ -212,11 +212,11 @@ void sendToServer(float temp, float hum, float press, uint16_t co2)
 
     http.addHeader("Content-Type", "application/json");
     http.addHeader("X-API-Key", API_KEY);
-    
+
     int httpCode = http.POST(payload);
 
-    if (httpCode == 200 || httpCode == 201)
-    {
+      if (httpCode == 200 || httpCode == 201)
+      {
       Serial.println();
       Serial.print("Temperature (*C): ");
       Serial.print(temp, 2);
@@ -237,13 +237,13 @@ void sendToServer(float temp, float hum, float press, uint16_t co2)
       Serial.println();
       Serial.print("Data sent successfully\n");
       Serial.println();
-      success = true;
-    }
+        success = true;
+      }
     else if (httpCode > 0)
-    {
+      {
       Serial.print("HTTP error: ");
       Serial.println(httpCode);
-    }
+      }
     else if (attempt == HTTP_MAX_RETRIES)
     {
       Serial.print("HTTP failed: ");
@@ -304,14 +304,14 @@ void setup()
   // BMP085 - typically at 0x77
   Wire.beginTransmission(0x77);
   if (Wire.endTransmission() == 0)
-  {
+      {
     Serial.println("BMP085: OK");
   }
   
   // SCD4x - at 0x62
   Wire.beginTransmission(0x62);
   if (Wire.endTransmission() == 0)
-  {
+      {
     Serial.println("SCD4x: OK");
   }
   
@@ -321,7 +321,7 @@ void setup()
   {
     Serial.println("SHT21: OK");
   }
-  
+
   Serial.println("Ready!");
 }
 
