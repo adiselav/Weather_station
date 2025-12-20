@@ -6,6 +6,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const path = require("path");
+const open = require("open");
 
 const app = express();
 
@@ -115,11 +116,13 @@ app.get("/api/readings/latest", async (req, res) => {
 // History - last N readings (for charts)
 app.get("/api/readings/history", async (req, res) => {
   try {
-    const limit = Number(req.query.limit) || 100;
-    const docs = await Reading.find()
-      .sort({ timestamp: -1 })
-      .limit(limit)
-      .lean();
+    const limit = Number(req.query.limit);
+    const query = Reading.find().sort({ timestamp: -1 });
+    
+    // Apply limit only if specified and greater than 0
+    const docs = limit > 0 
+      ? await query.limit(limit).lean()
+      : await query.lean();
 
     // Return them in chronological order (oldest -> newest)
     docs.reverse();
@@ -150,5 +153,16 @@ app.get("/api/config", (req, res) => {
 // ------------- START SERVER -------------
 
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Dashboard server running on port ${PORT}`);
+  const url = `http://localhost:${PORT}`;
+  console.log("\n" + "=".repeat(50));
+  console.log(`Dashboard server running!`);
+  console.log(`\nAccess at: ${url}`);
+  console.log("=".repeat(50) + "\n");
+
+  // Deschide browserul automat în modul development
+  if (process.env.NODE_ENV !== "production") {
+    open(url).catch((err) => {
+      console.log("Could not open browser automatically:", err.message);
+    });
+  }
 });

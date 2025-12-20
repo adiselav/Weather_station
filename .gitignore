@@ -41,3 +41,6 @@ logs/
 *.tmp
 *.temp
 .cache/
+
+firmware/index/config.h
+firmware/config.h

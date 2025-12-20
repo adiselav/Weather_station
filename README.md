@@ -25,10 +25,10 @@ The system consists of three main components:
 
    ```cpp
    // config.h
-   #define WIFI_SSID "your_wifi_name"
-   #define WIFI_PASSWORD "your_wifi_password"
-   #define SERVER_URL "http://your-server-ip:3000/api/readings"
-   #define API_KEY "your_secure_api_key"
+   #define WIFI_SSID "YOUR_WIFI_SSID"
+   #define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
+   #define SERVER_URL "http://YOUR_SERVER_IP:3000/api/readings"
+   #define API_KEY "YOUR_SECURE_API_KEY"
    #define WIFI_RECONNECT_TIMEOUT 30000  // 30 seconds
    #define HTTP_MAX_RETRIES 3
    #define HTTP_RETRY_DELAY 5000  // 5 seconds
@@ -53,7 +53,7 @@ The system consists of three main components:
    MONGODB_URL=mongodb://localhost:27017/
    DB_NAME=weather_station
    COLLECTION_NAME=readings
-   API_KEY=your_secure_api_key
+   API_KEY=YOUR_SECURE_API_KEY
    PORT=3000
    ```
 
@@ -86,11 +86,21 @@ The system consists of three main components:
 
 3. Start the dashboard server:
 
+   **Production mode:**
    ```bash
-   node server.js
+   npm start
    ```
 
+   **Development mode (with auto-restart):**
+   ```bash
+   npm run dev
+   ```
+
+   Development mode uses nodemon to automatically restart the server when you make changes to the code. This is useful for debugging without needing to manually redeploy to Render after each change.
+
 4. Open your browser to: `http://localhost:4000`
+
+   In development mode, the browser will open automatically.
 
 ## Testing Database Connection
 
@@ -142,10 +152,26 @@ This will verify:
 3. **Test gateway endpoint:**
 
    ```bash
-   curl http://your-server-ip:3000/
+   curl http://YOUR_SERVER_IP:3000/
    ```
 
    Should return: `{"status":"ok","message":"Weather Station Server",...}`
+
+## Development Tips
+
+### Local Development vs Production
+
+For local debugging and development:
+
+- Use `npm run dev` in the dashboard folder to enable auto-restart on file changes
+- The browser will open automatically at `http://localhost:4000`
+- No need to manually redeploy to Render after each change
+- Changes to server.js or other files will trigger an automatic restart
+
+For production deployment on Render:
+
+- Use `npm start` which runs the server without nodemon
+- Environment variables are managed through Render's dashboard
 
 ## Data Collection Schedule
 
@@ -164,10 +190,16 @@ This will verify:
 ### Dashboard Server (Port 4000)
 
 - `GET /api/readings/latest` - Get latest reading
-- `GET /api/readings/history?limit=100` - Get historical data
+- `GET /api/readings/history` - Get historical data (all readings, or use `?limit=N` for specific count)
 - `GET /api/config` - Get dashboard configuration (refresh interval)
 - `GET /api/health` - Health check
 - `GET /` - Web dashboard (HTML)
+
+## Available Commands
+
+### Dashboard
+- `npm start` - Start server in production mode
+- `npm run dev` - Start server in development mode with auto-restart (nodemon)
 
 ## License
 
