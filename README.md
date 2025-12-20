@@ -53,7 +53,7 @@ The system consists of three main components:
    MONGODB_URL=mongodb://localhost:27017/
    DB_NAME=weather_station
    COLLECTION_NAME=readings
-   API_KEY=YOUR_SECURE_API_KEY
+   API_KEY=REPLACE_WITH_YOUR_SECURE_API_KEY
    PORT=3000
    ```
 
